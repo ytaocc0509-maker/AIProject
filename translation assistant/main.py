@@ -1,6 +1,7 @@
 import os
 
 from ai_model.openai_model import OpenAIModel
+from translator.book_translator import PDFTranslator
 from utils.argument_utils import ArgumentUtils
 from utils.loader_config import LoaderConfig
 
@@ -27,3 +28,17 @@ if __name__ == '__main__':
     else:
         # model = ChatGLMModel()
         pass
+
+
+    # 初始化一个翻译器
+    file_format: str = args.file_format if args.file_format else config['common']['file_format']
+    # 得到入口文件的路径
+    file_path: str = args.book if args.book else config['common']['book']
+    if file_path[file_path.rindex('.'):] == '.pdf' or file_path[file_path.rindex('.'):] == '.PDF':
+        translator = PDFTranslator(model)
+
+    else:
+        pass  # 如果需要翻译的书籍是doc或者docx。需要另外一个对象
+
+    # 真正开启翻译书籍
+    translator.translate_book(file_path, file_format)

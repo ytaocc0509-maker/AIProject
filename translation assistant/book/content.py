@@ -59,8 +59,22 @@ class TableContent:
     def set_translation(self, translation, status):
         """
         设置翻译之后的文本，并设置翻译状态
+        1、判断数据的合法性
+        2、把translation文本数据，变成二维的数组
+        3、把二维数组变成DataFrame
 
         """
+        if self.content_type == ContentType.TABLE and isinstance(translation, str) and status:
+            # 得到二维的数组
+            table_data = [re.split(',|，', row.strip()) for row in translation.strip().split('\n')]
+            log.debug(table_data)
+            # 得到dataframe数据，表头单独处理
+            # translation_df = pd.DataFrame(table_data[1:], columns=table_data[0])
+            translation_df = pd.DataFrame(table_data[0:])
+
+            log.debug(f'处理成DataFrame数据：\n{translation_df}')
+            self.translation = translation_df
+            self.status = status
 
 
     def get_original_to_string(self):
