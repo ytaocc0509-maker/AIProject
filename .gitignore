@@ -1,0 +1,11 @@
+#虚拟环境
+LangChainDemo/venv/
+
+#Pycharm
+.idea/
+
+
+#敏感文件
+*.env
+
+
