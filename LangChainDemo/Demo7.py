@@ -47,27 +47,27 @@ urls = [
     "https://www.youtube.com/watch?v=o7C9ld6Ln-M",
 ]
 
-# docs = []  # document的数组
-# for url in urls:
-#     # 一个Youtube的视频对应一个document
-#     docs.extend(YoutubeLoader.from_youtube_url(url, add_video_info=True).load())
-#
+docs = []  # document的数组
+for url in urls:
+    # 一个Youtube的视频对应一个document
+    docs.extend(YoutubeLoader.from_youtube_url(url, add_video_info=True).load())
+
 # print(len(docs))
 # print(docs[0])
-# # 给doc添加额外的元数据： 视频发布的年份
-# for doc in docs:
-#     doc.metadata['publish_year'] = int(
-#         datetime.datetime.strptime(doc.metadata['publish_date'], '%Y-%m-%d %H:%M:%S').strftime('%Y'))
-#
-#
+# 给doc添加额外的元数据： 视频发布的年份
+for doc in docs:
+    doc.metadata['publish_year'] = int(
+        datetime.datetime.strptime(doc.metadata['publish_date'], '%Y-%m-%d %H:%M:%S').strftime('%Y'))
+
+
 # print(docs[0].metadata)
 # print(docs[0].page_content[:500])  # 第一个视频的字幕内容
-#
-# # 根据多个doc构建向量数据库
-# text_splitter = RecursiveCharacterTextSplitter(chunk_size=2000, chunk_overlap=30)
-# split_doc = text_splitter.split_documents(docs)
-# # 向量数据库的持久化
-# vectorstore = Chroma.from_documents(split_doc, embeddings, persist_directory=persist_dir)  # 并且把向量数据库持久化到磁盘
+
+# 根据多个doc构建向量数据库
+text_splitter = RecursiveCharacterTextSplitter(chunk_size=2000, chunk_overlap=30)
+split_doc = text_splitter.split_documents(docs)
+# 向量数据库的持久化
+vectorstore = Chroma.from_documents(split_doc, embeddings, persist_directory=persist_dir)  # 并且把向量数据库持久化到磁盘
 
 
 # 加载磁盘中的向量数据库
