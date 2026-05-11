@@ -35,18 +35,14 @@ class MedicalBillingList(BaseModel):
 
 # 2、提供样例数据
 examples = [
-    {"patient_id": 123456, "patient_name": "张娜", "diagnosis_code": "J20.9", "procedure_code": "99203",
-     "total_charge": 500.0, "insurance_claim_amount": 350.0},
-    {"patient_id": 789012, "patient_name": "王兴鹏", "diagnosis_code": "M54.5", "procedure_code": "99213",
-     "total_charge": 150.0, "insurance_claim_amount": 120.0},
-    {"patient_id": 345678, "patient_name": "刘晓辉", "diagnosis_code": "E11.9", "procedure_code": "99214",
-     "total_charge": 300.0, "insurance_claim_amount": 250.0},
+    {"patient_id": 123456, "patient_name": "张娜", "diagnosis_code": "J20.9", "procedure_code": "99203", "total_charge": 500.0, "insurance_claim_amount": 350.0},
+    {"patient_id": 789012, "patient_name": "王兴鹏", "diagnosis_code": "M54.5", "procedure_code": "99213", "total_charge": 150.0, "insurance_claim_amount": 120.0},
+    {"patient_id": 345678, "patient_name": "刘晓辉", "diagnosis_code": "E11.9", "procedure_code": "99214", "total_charge": 300.0, "insurance_claim_amount": 250.0},
 ]
 
 # 3、创建提示模板
 example_prompt = PromptTemplate(
-    input_variables=["patient_id", "patient_name", "diagnosis_code", "procedure_code", "total_charge",
-                     "insurance_claim_amount"],
+    input_variables=["patient_id", "patient_name", "diagnosis_code", "procedure_code", "total_charge", "insurance_claim_amount"],
     template="Patient ID: {patient_id}, Patient Name: {patient_name}, Diagnosis Code: {diagnosis_code}, Procedure Code: {procedure_code}, Total Charge: ${total_charge}, Insurance Claim Amount: ${insurance_claim_amount}"
 )
 
@@ -54,7 +50,15 @@ prompt = FewShotPromptTemplate(
     examples=examples,
     example_prompt=example_prompt,
     prefix="请按照以上格式生成医疗账单数据。",
-    suffix="\n\n请生成 {count} 条新的医疗账单数据，患者姓名使用中文名字，不要重复示例数据。",
+    suffix="""
+请生成 {count} 条新的医疗账单数据，要求：
+1. 患者姓名使用中文名字
+2. 患者年龄在18-80岁之间
+3. 总费用在100-5000元之间
+4. 保险索赔金额不超过总费用的80%
+5. 诊断代码使用有效的ICD-10编码
+6. 不要重复示例数据
+""",
     input_variables=["count"],
 )
 
