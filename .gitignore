@@ -1,5 +1,6 @@
 #虚拟环境
 LangChainDemo/venv/
+Langchain_BookTranslator/venv
 
 #Pycharm
 .idea/
@@ -7,5 +8,6 @@ LangChainDemo/venv/
 
 #敏感文件
 *.env
+Langchain_BookTranslator/config.yaml
 
 
