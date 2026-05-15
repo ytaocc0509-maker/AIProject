@@ -8,6 +8,6 @@ Langchain_BookTranslator/venv
 
 #敏感文件
 *.env
-Langchain_BookTranslator/config.yaml
+config.yaml
 
 

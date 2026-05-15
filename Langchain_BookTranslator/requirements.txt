@@ -1,0 +1,13 @@
+loguru
+pdfplumber
+simplejson
+requests
+PyYAML~=6.0.1
+pillow
+reportlab
+pandas~=2.2.2
+loguru
+langchain~=0.2.6
+langchain-openai
+gradio
+fastapi

@@ -9,11 +9,13 @@ class ProjectConfig:
     """
     _instance = None  # 当前这个类的实例
 
+    def __init__(self):
+        self._config = None
+        self._args = None
+
     def __new__(cls, *args, **kwargs):
         if cls._instance is None:
             cls._instance = super(ProjectConfig, cls).__new__(cls)
-            cls._instance._config = None
-            cls._instance._args = None
         return cls._instance
 
     def initialize(self):
@@ -52,5 +54,6 @@ class ProjectConfig:
 
 if __name__ == '__main__':
     o1 = ProjectConfig()
-    o2 = ProjectConfig()
-    print(o1 is o2)
+    o1.initialize()
+    print(o1.model_name)
+    print(o1.model)

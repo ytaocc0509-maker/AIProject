@@ -1,10 +1,10 @@
-model_name: "gpt-4o"
+﻿model_name: "qwen-turbo"
 input_file: "test/test.pdf"
-model_type: "OpenAIModel"
-#api_key: "YouKey"
+model_type: "ChatQwen"
+api_key: ""
 file_format: "md"
 source_language: "English"
-target_language: "Japanese"
+target_language: "Chinese"
 
 
 
