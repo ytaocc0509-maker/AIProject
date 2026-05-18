@@ -1,21 +1,6 @@
-﻿model_name: "qwen-turbo"
+model_name: "qwen-turbo"
 input_file: "test/test.pdf"
 model_type: "ChatQwen"
-api_key: ""
 file_format: "md"
 source_language: "English"
 target_language: "Chinese"
-
-
-
-
-
-
-
-
-
-
-
-
-
-

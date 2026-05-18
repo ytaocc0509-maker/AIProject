@@ -1,12 +1,14 @@
 from langchain_core.prompts import SystemMessagePromptTemplate, HumanMessagePromptTemplate, ChatPromptTemplate
 from langchain_qwq import ChatQwen
+
+
 class Model:
     """
     AI的模型对象
     """
+
     def create_llm(self):
         print("初始化大预言模型的对象")
-
 
     def make_prompt(self):
         """
@@ -18,7 +20,6 @@ class Model:
         human_message_prompt = HumanMessagePromptTemplate.from_template('{text}')  # 用户真正翻译的提示是动态的
 
         return ChatPromptTemplate.from_messages([system_message_prompt, human_message_prompt])
-
 
         # if content.content_type == ContentType.TEXT:
         #     return f'请翻译成{target_language}: {content.original}'

@@ -11,9 +11,8 @@ if __name__ == '__main__':
     if config.model_type == 'ChatQwen':
         model = ChatQwenModel(config.model_name, config.api_key)
     else:
-        model = ChatQwenModel(config.model_name, config.api_key)
-
-
+        pass
+        #model = ChatQwenModel(config.model_name, config.api_key)
 
     translator = PDFTranslator(model)
     translator.translate_book(file_path=config.input_file, source_language=config.source_language,

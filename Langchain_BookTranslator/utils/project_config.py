@@ -1,5 +1,8 @@
+import argparse
 import yaml
+import os
 
+from dotenv import load_dotenv
 from utils.argument_utils import ArgumentUtils
 
 
@@ -24,10 +27,10 @@ class ProjectConfig:
         :return:
         """
 
-        # 环境变量配置的初始化
+        # 环境变量配置的初始化 - 从 .env 文件加载
+        load_dotenv()
 
         # 命令行参数配置的初始化
-
         if self._args is None:
             arg_utils = ArgumentUtils()
             self._args = arg_utils.parse_arg()
@@ -37,12 +40,31 @@ class ProjectConfig:
             with open(self._args.config, 'r') as f:
                 config = yaml.safe_load(f)
 
-            overridden_config = {  # 所有冲突的配置字典
-                key: value for key, value in vars(self._args).items()
-                if key in config and value is not None
-            }
+            # 只覆盖用户明确传入的命令行参数（排除默认值）
+            overridden_config = {}
+            args_dict = vars(self._args)
+            
+            # 获取命令行参数的默认值（从ArgumentParser对象获取）
+            defaults = {}
+            for action in arg_utils.parser._actions:
+                if hasattr(action, 'default') and action.default is not argparse.SUPPRESS:
+                    defaults[action.dest] = action.default
+            
+            # 只覆盖非默认值的命令行参数
+            for key, value in args_dict.items():
+                if key in config and value is not None:
+                    # 检查是否是默认值，如果是默认值则不覆盖配置文件
+                    if key in defaults and value == defaults[key]:
+                        continue
+                    overridden_config[key] = value
 
             config.update(overridden_config)  # 把命令的参数覆盖config文件里面的
+
+            # 从环境变量读取 api_key，如果存在则覆盖配置
+            env_api_key = os.getenv('API_KEY')
+            if env_api_key:
+                config['api_key'] = env_api_key
+
             self._config = config
 
     def __getattr__(self, item):

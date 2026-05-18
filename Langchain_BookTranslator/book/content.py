@@ -65,8 +65,24 @@ class TableContent:
 
         """
         if self.content_type == ContentType.TABLE and isinstance(translation, str) and status:
-            # 得到二维的数组
-            table_data = [re.split(',|，', row.strip()) for row in translation.strip().split('\n')]
+            # 处理两种格式：
+            # 格式1: 每行用换行符分隔，每行内用逗号分隔
+            # 格式2: [列1, 列2, 列3] [列1, 列2, 列3] ... (方括号格式)
+            
+            table_data = []
+            
+            # 检查是否是方括号格式
+            if translation.strip().startswith('['):
+                # 提取每个方括号内的内容
+                rows = re.findall(r'\[(.*?)\]', translation)
+                for row in rows:
+                    # 按逗号分隔
+                    cells = [cell.strip() for cell in re.split(',|，', row.strip())]
+                    table_data.append(cells)
+            else:
+                # 普通格式：每行用换行符分隔
+                table_data = [re.split(',|，', row.strip()) for row in translation.strip().split('\n')]
+            
             log.debug(table_data)
             # 得到dataframe数据，表头单独处理
             # translation_df = pd.DataFrame(table_data[1:], columns=table_data[0])

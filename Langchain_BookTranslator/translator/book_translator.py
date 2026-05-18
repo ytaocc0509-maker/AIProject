@@ -42,4 +42,5 @@ class PDFTranslator:
 
         # 把翻译之后的所有数据，写入文件
         # Writer
-        self.writer.save_book(out_file_path, out_file_format)
+        output_path = self.writer.save_book(out_file_path, out_file_format)
+        return output_path

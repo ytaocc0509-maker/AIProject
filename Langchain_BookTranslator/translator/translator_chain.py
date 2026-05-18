@@ -34,7 +34,7 @@ class TranslatorChain:
                 text = f'请按照要求翻译以下的内容: {content.original}'
             elif content.content_type == ContentType.TABLE:
                 log.info("+++++++++++++")
-                text = f'请按照要求翻译以下的内容，每个元素之间用逗号隔开，注意换行，以非MarkDown的表格形式返回：\n {content.get_original_to_string()}'
+                text = f'请将以下表格中的所有文字从{source_language}翻译成{target_language}，保持表格的行数和列数不变，只翻译文字内容，数字保持不变。每行的元素之间用英文逗号分隔，每行之间用换行符分隔：\n {content.get_original_to_string()}'
 
             result = self.langchain.invoke({
                 'source_language': source_language,
