@@ -45,6 +45,7 @@ def precompute_theta_pos_frequencies(head_dim: int, seq_len: int, device: str, t
     freqs_complex = torch.polar(torch.ones_like(freqs), freqs)
     return freqs_complex
 
+
 def apply_rotary_embedding(x: torch.Tensor, freqs_complex: torch.Tensor, device: str):
     # 1, 将 x token 向量中的 dimension 个值分组, 2个值一组
     # 2, 然后将其转换为复数形式
@@ -76,6 +77,140 @@ class RMSNorm(nn.Module):
 
     def forward(self, x: torch.Tensor):
         return self._norm(x.float()).type_as(x) * self.weight
+
+
+def repeat_kv(x: torch.Tensor, n_rep: int) -> torch.Tensor:
+    batch_size, seq_len, n_kv_heads, head_dim = x.shape
+    if n_rep == 1:
+        # MHA
+        return x
+    else:
+        return (
+            x[:, :, :, None, :].expand(batch_size, seq_len, n_kv_heads, n_rep, head_dim)
+            .reshape(batch_size, seq_len, n_kv_heads * n_rep, head_dim)
+        )
+
+
+class SelfAttention(nn.Module):
+    def __init__(self, args: ModelArgs):
+        super().__init__()
+
+        self.n_kv_heads = args.n_heads if args.n_kv_heads is None else args.n_kv_heads
+        self.n_heads_q = args.n_heads
+
+        # 指名一个 query of head 对应多少个重复的 repeated keys and values of head
+        self.n_req = self.n_heads_q // self.n_kv_heads  # 32 / 8 = 4
+
+        # 4096 / 32 = 128
+        self.head_dim = args.dim // args.n_heads
+
+        self.wq = nn.Linear(args.dim, args.n_heads * self.head_dim, bias=False)
+        self.wk = nn.Linear(args.dim, self.n_kv_heads * self.head_dim, bias=False)
+        self.wv = nn.Linear(args.dim, self.n_kv_heads * self.head_dim, bias=False)
+        self.wo = nn.Linear(args.n_heads * self.head_dim, args.dim, bias=False)
+
+        self.cache_k = torch.zeros((args.max_batch_size, args.max_seq_len, self.n_kv_heads, self.head_dim))
+        self.cache_v = torch.zeros((args.max_batch_size, args.max_seq_len, self.n_kv_heads, self.head_dim))
+
+    def forward(self, x: torch.Tensor, start_pos: int, freqs_complex: torch.Tensor):
+        # (B, 1, Dim)
+        batch_size, seq_len, _ = x.shape
+
+        # (B, 1, Dim) -> (B, 1, H_Q * Head_Dim)
+        xq = self.wq(x)
+        # (B, 1, Dim) -> (B, 1, H_KV * Head_Dim)
+        xk = self.wk(x)
+        xv = self.wv(x)
+
+        # (B, 1, H_Q * Head_Dim) -> (B, 1, H_Q, Head_Dim)
+        xq = xq.view(batch_size, seq_len, self.n_heads_q, self.head_dim)
+        # (B, 1, H_KV * Head_Dim) -> (B, 1, H_KV, Head_Dim)
+        xk = xk.view(batch_size, seq_len, self.n_kv_heads, self.head_dim)
+        # (B, 1, H_KV * Head_Dim) -> (B, 1, H_KV, Head_Dim)
+        xv = xv.view(batch_size, seq_len, self.n_kv_heads, self.head_dim)
+
+        # 应用 RoPE
+        xq = apply_rotary_embedding(xq, freqs_complex, device=x.device)
+        xk = apply_rotary_embedding(xk, freqs_complex, device=x.device)
+
+        # 因为前面把 cache 全部初始化为 0, 所以这里"append"其实就是将对应位置赋值
+        self.cache_k[:batch_size, start_pos:start_pos + seq_len] = xk
+        self.cache_v[:batch_size, start_pos:start_pos + seq_len] = xv
+
+        # 为了后面去计算 self attention
+        keys = self.cache_k[:batch_size, 0:start_pos + seq_len]
+        values = self.cache_v[:batch_size, 0:start_pos + seq_len]
+
+        # 重复 keys and values 以达到 queries 的数量
+        keys = repeat_kv(keys, self.n_req)
+        values = repeat_kv(values, self.n_req)
+
+        # (B, 1, H_Q, Head_Dim) -> (B, H_Q, 1, Head_Dim)
+        xq = xq.transpose(1, 2)
+        keys = keys.transpose(1, 2)
+        values = values.transpose(1, 2)
+
+        # (B, H_Q, 1, Head_Dim) @ (B, H_Q, Head_Dim, Seq_Len_KV) --> (B, H_Q, 1, Seq_Len_KV)
+        scores = torch.matmul(xq, keys.transpose(2, 3)) / math.sqrt(self.head_dim)
+        scores = F.softmax(scores.float(), dim=-1).type_as(xq)
+
+        # (B, H_Q, 1, Seq_Len_KV) @ (B, H_Q, Seq_Len_KV, Head_Dim) --> (B, H_Q, 1, Head_Dim)
+        output = torch.matmul(scores, values)
+        # (B, H_Q, 1, Head_Dim) -> (B, 1, H_Q, Head_Dim) -> (B, 1, Dim)
+        output = output.transpose(1, 2).contiguous().view(batch_size, seq_len, -1)
+
+        return self.wo(output)  # (B, 1, Dim)
+
+
+class FeedForward(nn.Module):
+    def __init__(self, args: ModelArgs):
+        super().__init__()
+
+        hidden_dim = 4 * args.dim
+        hidden_dim = int(2 * hidden_dim / 3)
+        if args.ffn_dim_multiplier is not None:
+            hidden_dim = int(args.ffn_dim_multiplier * hidden_dim)
+        # hidden_size = 7; multiple = 5; 现在是7,但是想要比7大的第一个5的倍数
+        # (7 + 5 - 1) // 5 = 2 --> 5 * 2 = 10
+        hidden_dim = args.multiple_of * ((hidden_dim + args.multiple_of - 1) // args.multiple_of)
+
+        self.w1 = nn.Linear(args.dim, hidden_dim, bias=False)
+        self.w2 = nn.Linear(hidden_dim, args.dim, bias=False)
+        self.w3 = nn.Linear(args.dim, hidden_dim, bias=False)
+
+    def forward(self, x: torch.Tensor):
+        # SwiGLU 是 Swish 激活函数和 GLU 函数的结合
+        # SwiGLU(A, B) = A * Swish(B)
+        swish = F.silu(self.w1(x))
+        x_v = self.w3(x)
+        x = swish * x_v
+        x = self.w2(x)
+        return x
+
+
+class EncoderBlock(nn.Module):
+    def __init__(self, args: ModelArgs):
+        super().__init__()
+
+        self.n_heads = args.n_heads  # 32
+        self.dim = args.dim  # 4096
+        # 4096 / 32 = 128
+        self.head_dim = args.dim // args.n_heads
+
+        self.attention = SelfAttention(args)
+        self.feed_forward = FeedForward(args)
+
+        # attention 之前需要归一化
+        self.attention_norm = RMSNorm(args.dim, eps=args.norm_eps)
+        # feedward 之前需要归一化
+        self.ffn_norm = RMSNorm(args.dim, eps=args.norm_eps)
+
+    def forward(self, x: torch.Tensor, start_pos: int, freqs_complex: torch.Tensor):
+        h = x + self.attention.forward(self.attention_norm(x), start_pos, freqs_complex)
+        out = h + self.feed_forward.forward(self.ffn_norm(h))
+        return out
+
+
 class Transformer(nn.Module):
     def __init__(self, args: ModelArgs) -> None:
         super().__init__()
