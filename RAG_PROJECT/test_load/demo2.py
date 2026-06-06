@@ -17,7 +17,7 @@ loader = UnstructuredLoader(
     strategy='hi_res',
     partition_via_api=True,  # 调用API接口的话：True
     coordinates=True,
-    api_key='IhWKAZRBmZ14c8tmCsOLabqwIKLJ2e'
+    api_key=''
 )
 
 docs = []
